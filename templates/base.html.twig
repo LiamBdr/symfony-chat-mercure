@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>{% block title %}Welcome!{% endblock %}</title>
+
+        {# FONTS #}
+        <link href="{{asset('fonts/SF-Pro-Display.ttf')}}" rel="stylesheet">
+
+        {% block stylesheets %}
+            <link rel="stylesheet" href="{{ asset('css/styles.css') }}">
+            {{ encore_entry_link_tags('app') }}
+        {% endblock %}
+
+
+    </head>
+    <body>
+    <section class="main-container">
+        <div class="phone">
+            <div class="phone-notch"></div>
+            <div class="phone-user">
+                {% if is_granted('IS_AUTHENTICATED_FULLY') %}
+                    <a href="{{ path('app_logout') }}">{{ app.user.username|lower|capitalize }}</a>
+                {% endif %}
+            </div>
+            {% block body %}{% endblock %}
+        </div>
+    </section>
+        {% block javascripts %}
+            {{ encore_entry_script_tags('app') }}
+        {% endblock %}
+    </body>
+</html>

@@ -1,0 +1,35 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Inscription{% endblock %}
+
+
+{% block body %}
+    <h1 id="register-title">Inscription</h1>
+    <div id="register">
+        {{ form_start(registrationForm) }}
+            <div>
+                {{ form_label(registrationForm.username) }}
+                {{ form_widget(registrationForm.username, {
+                    attr:
+                    {'placeholder': 'Username'}
+                }) }}
+            </div>
+
+            <div>
+                {{ form_label(registrationForm.plainPassword) }}
+                {{ form_widget(registrationForm.plainPassword, {
+                    attr:
+                    {'placeholder': 'Password'}
+                }) }}
+            </div>
+
+            <div class="errors">
+                {{ form_errors(registrationForm.username) }}
+                {{ form_errors(registrationForm.plainPassword) }}
+            </div>
+
+            <button type="submit">S'INSCRIRE</button>
+            <a class="link" href="{{ path('app_login') }}">Connexion</a>
+        {{ form_end(registrationForm) }}
+    </div>
+{% endblock %}

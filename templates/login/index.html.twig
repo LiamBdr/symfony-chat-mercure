@@ -1,0 +1,34 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Connexion{% endblock %}
+
+{% block body %}
+    <h1 id="register-title">Connexion</h1>
+    <div id="register">
+        <form action="{{ path('app_login') }}" method="post">
+
+            <div>
+                <label for="username">Identifiant</label>
+                <input type="text" id="username" name="_username" value="{{ last_username }}" placeholder="Username"/>
+            </div>
+
+            <div>
+                <label for="password">Mot de passe</label>
+                <input type="password" id="password" name="_password" placeholder="Password"/>
+            </div>
+
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
+
+            <div class="errors">
+                {% if error %}
+                    <ul>
+                        {{ error.messageKey|trans(error.messageData, 'security') }}
+                    </ul>
+                {% endif %}
+            </div>
+
+            <button type="submit">SE CONNECTER</button>
+            <a class="link" href="{{ path('app_register') }}">Inscription</a>
+        </form>
+    </div>
+{% endblock %}

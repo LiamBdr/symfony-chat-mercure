@@ -1,0 +1,88 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Messagerie{% endblock %}
+
+{% block body %}
+    <div class="home-head">
+        <h1>Messages</h1>
+        <a href="{{ path('app_new_chat') }}"><img src="{{ asset('svg/add_icon.svg') }}" alt="Ajouter une discussion"></a>
+    </div>
+    <div class="conversations"></div>
+{% endblock %}
+
+{% block javascripts %}
+    <script>
+
+        const conversationsContainer = document.querySelector('.conversations');
+
+        getAllConversations();
+
+        //display all conversations including the user
+        async function getAllConversations() {
+
+            const response = await fetch('/api/conversations?users=/api/users/{{ app.user.id }}',{
+                method:'GET',
+                headers:{
+                    'Content-Type':'application/ld+json'
+                }
+            });
+            const data = await response.json();
+
+            //display retrieved conversations
+            conversationsContainer.innerHTML = '';
+            data['hydra:member'].forEach(function (conversation) {
+                createConversation(conversation);
+            })
+        }
+
+        async function createConversation(conversation) {
+            let username, ppSrc, lastMessage;
+
+            //get user informations
+            conversation.users.forEach(function (user) {
+                if (user.username !== '{{ app.user.username }}') {
+                    username = user.username
+                    ppSrc = user.picture;
+                }
+            })
+
+            //get last message of the conversation
+            let lastMessageId;
+            if (conversation.messages.length > 0) {
+                //get the last messageId in messages array of the conversation
+                lastMessageId = parseInt(conversation.messages[parseInt(conversation.messages.length)-1].match(/\d+/)[0]);
+                //get last message content
+                lastMessage = await getLastMessage(lastMessageId);
+            } else {
+                lastMessage = 'Send a message!';
+            }
+
+            //create conversation Html element
+            let convEl = document.createElement('a');
+            convEl.classList.add('conversation');
+            convEl.setAttribute('href', 'conversation/'+conversation.id);
+            convEl.innerHTML = `<a class="conversation">
+                <img class="pp" src="`+ppSrc+`" alt="Profile picture">
+                <div>
+                  <p class="name">`+username+`</p>
+                  <p class="last-message">`+lastMessage+`</p>
+                </div>
+            </a>`
+            conversationsContainer.append(convEl)
+        }
+
+        async function getLastMessage(id) {
+
+            const response = await fetch('/api/messages/'+id,{
+                method:'GET',
+                headers:{
+                    'Content-Type':'application/ld+json'
+                }
+            });
+            const data = await response.json();
+
+            return data.content;
+        }
+
+    </script>
+{% endblock %}

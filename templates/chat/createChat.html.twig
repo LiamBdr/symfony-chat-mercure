@@ -1,0 +1,105 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Messagerie{% endblock %}
+
+{% block body %}
+
+    <div class="home-head">
+        <a class="back-arrow" href="{{ path('app_home') }}"><img src="{{ asset('svg/left-arrow.svg') }}" alt="Retour à l'accueil"></a>
+        <h1>Ajouter</h1>
+    </div>
+    <div class="conversations"></div>
+
+{% endblock %}
+
+{% block javascripts %}
+    <script>
+
+        //get existing conversations to get users and hide them
+         async function usersToHide() {
+
+            const response = await fetch('/api/conversations?users=/api/users/{{ app.user.id }}',{
+                method:'GET',
+                headers:{
+                    'Content-Type':'application/ld+json'
+                }
+            });
+            const data = await response.json();
+
+            //get each user from existing conversation that is not the current user
+             let usersArray = []
+             data['hydra:member'].forEach(function (conversation) {
+                conversation.users.forEach(function (user) {
+                    if (user.id !== {{ app.user.id }}) {
+                        usersArray.push(user.id);
+                    }
+                })
+            })
+            return usersArray;
+         }
+
+         //display players who can be displayed
+         async function displayUsersList() {
+
+             const response = await fetch('/api/users',{
+                 method:'GET',
+                 headers:{
+                     'Content-Type':'application/ld+json'
+                 }
+             });
+             const data = await response.json();
+
+             const usersToHides = await usersToHide();
+
+             //display each user
+             data['hydra:member'].forEach( function(user) {
+                 //the user is not in already existing conversation
+                 if (usersToHides.indexOf(user.id) === -1 && user.id !== {{ app.user.id }}) {
+                     createNewConversation(user);
+                 }
+             })
+         }
+
+         displayUsersList();
+
+         function createNewConversation(user) {
+
+             //generate the conversation add Html element
+             let conversation = document.createElement('a');
+             conversation.classList.add('conversation');
+             conversation.id = 'conversation'+user.id;
+             conversation.innerHTML =
+                `<img class="pp" alt="Profile picture" src="`+user.picture+`">
+                 <div>
+                    <p class="name">`+user.username+`</p>
+                    <button class="add">Ajouter</button>
+                 </div>`;
+             document.querySelector('.conversations').append(conversation);
+
+             //add event listener to create the conversation on click
+             conversation.addEventListener("click", function () {
+                 postNewConversation(user);
+             })
+         }
+
+        //create the new conversation with the api
+        async function postNewConversation(user) {
+
+             //post the new conversation
+            const response = await fetch('/api/conversations',{
+                method:'POST',
+                headers:{
+                    'Content-Type':'application/ld+json'
+                },
+                body: JSON.stringify({
+                    "users": ["/api/users/"+user.id,"/api/users/{{ app.user.id }}"]
+                }),
+            });
+            const data = await response.json();
+
+            //redirect to the new conversation
+            window.location.href = "/conversation/"+data['id'];
+        }
+
+    </script>
+{% endblock %}

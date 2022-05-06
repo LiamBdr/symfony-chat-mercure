@@ -1,0 +1,205 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Messagerie{% endblock %}
+
+{% block body %}
+
+    <div class="chat-head">
+        <a class="back-arrow" href="{{ path('app_home') }}"><img src="{{ asset('svg/left-arrow.svg') }}" alt="Left arrow"></a>
+        <div>
+            <img class="profil-pic" src="https://upload.wikimedia.org/wikipedia/commons/8/89/Portrait_Placeholder.png" alt="Profil picture">
+            <h2 class="friends-name">Lorem</h2>
+        </div>
+    </div>
+
+    <div class="messages">
+    </div>
+
+    <form id="send-form">
+        <input id="mess" name="mess" type="text">
+        <button type="submit"><img src="{{ asset('svg/arrow.svg') }}" alt="Arrow Svg"></button>
+    </form>
+
+{% endblock %}
+
+{% block javascripts %}
+    <script>
+
+        {# MERCURE SUBSCRIBTION #}
+        const eventSource = new EventSource("{{ mercure('http://127.0.0.1:8000/api/messages/{id}')|escape('js') }}");
+        eventSource.onmessage = event => {
+            // Will be called every time an update is published by the server
+            const response = JSON.parse(event.data);
+
+            console.warn(response);
+
+            if (response['content']) {
+                //get userid and display the new message
+                let userId =  parseInt(response['user']['id']);
+                createMessage(response.content, response.id, userId, response.createdAt);
+            } else {
+                let messageId = parseInt(response['@id'].match(/\d+/)[0]);
+                deletedMessage(messageId);
+            }
+        }
+
+        async function getConversationInfos() {
+            const response = await fetch('/api/conversations/{{ conversation_id }}',{
+                method:'GET',
+                headers:{
+                    'Content-Type':'application/ld+json'
+                }
+            });
+            const data = await response.json();
+
+            //display username and profile picture
+            data['users'].forEach(function (e) {
+                if (e.username !== '{{ app.user.username }}') {
+                    document.querySelector('.friends-name').innerHTML = e.username
+                    document.querySelector('.profil-pic').setAttribute('src', e.picture);
+                }
+            })
+        }
+        getConversationInfos();
+
+        const chatContainer = document.querySelector('.messages');
+        const messageForm = document.querySelector('#send-form');
+        const messageInput = document.querySelector('#mess');
+
+        refreshMessages();
+
+        //send message form is submit
+        messageForm.addEventListener("submit", function (e) {
+            e.preventDefault();
+
+            if (messageInput.value.length > 0) {
+                postMessage(messageInput.value);
+                messageInput.value = '';
+            }
+        })
+
+        async function refreshMessages() {
+
+            //get all conversation messages
+            const response = await fetch('/api/messages?conversation=api/conversations/{{ conversation_id }}',{
+                method:'GET',
+                headers:{
+                    'Content-Type':'application/ld+json'
+                }
+            });
+            const data = await response.json();
+
+            //clear all messages
+            chatContainer.innerHTML = '';
+
+            //display each conversation message
+            data['hydra:member'].forEach(function (message) {
+                createMessage(message.content, message.id, message.user.id, message.createdAt);
+            })
+        }
+
+        async function postMessage(message) {
+            try {
+                await fetch('/api/messages',{
+                    method:'POST',
+                    headers:{
+                        'Content-Type':'application/ld+json'
+                    },
+                    body: JSON.stringify({
+                        "content": message,
+                        "user": "/api/users/{{ app.user.id }}",
+                        "conversation": "/api/conversations/{{ conversation_id }}"
+                    }),
+                });
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function deleteMessage(link) {
+            try {
+                await fetch(link, {
+                    method:'DELETE'
+                });
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        {# JS FUNCTIONS #}
+        function createMessage(content, id, userId, datetime) {
+
+            let messageEl = document.createElement("div")
+            messageEl.classList.add('message', 'disappear');
+            messageEl.id = id;
+
+            let svgSrc;
+            // check if the message's author is the current user
+            if (userId === {{ app.user.id }}) {
+                messageEl.classList.add('blue');
+                svgSrc = '{{ asset('svg/imessage-blue.svg') }}';
+            } else {
+                svgSrc = '{{ asset('svg/imessage-gray.svg') }}';
+            }
+
+            let hours = datetime.substring(11,13)
+            let messageDate = new Date(datetime)
+            messageDate.setHours(hours);
+            let todayDate = new Date();
+            let displayDate;
+
+            //the message has been sent within the day so display the time
+            if (messageDate.getDay() === todayDate.getDay() && messageDate.getMonth() === todayDate.getMonth()) {
+                let minutes = messageDate.getMinutes().toString();
+                if (minutes.length < 2) {
+                    minutes = '0'+minutes
+                }
+                displayDate = messageDate.getHours()+':'+minutes
+            }
+            //the message was not sent today so display the date
+            else {
+                displayDate = messageDate.getDate()+' '+new Intl.DateTimeFormat('fr-FR', { month: 'long'}).format(messageDate);
+            }
+
+            //create message Html element
+            messageEl.innerHTML =
+                `<div class="message-datetime">`+displayDate+`</div>
+                <img src="`+svgSrc+`" alt="YMessage svg" class="message-svg">
+                <span>`+content+`</span>
+                <a href="/api/messages/`+id+`" class="delete-link">
+                    <svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" viewBox="0 0 120 120" xml:space="preserve"><path d="M49.6,0c-2.9,0-5.2,2.3-5.3,5.1c0,0,0,0,0,0.1H13c-2.9,0-5.3,2.3-5.3,5.1s2.3,5.3,5.1,5.3c0,0,0.1,0,0.1,0H107 c2.9,0,5.3-2.3,5.3-5.1s-2.3-5.3-5.1-5.3c0,0-0.1,0-0.1,0H75.7c0-2.9-2.3-5.2-5.2-5.2c0,0,0,0-0.1,0H49.6z M13,26.1v83.5c0,5.8,4.7,10.4,10.4,10.4h73c5.8,0,10.4-4.7,10.4-10.4V26.1H13z"></path></svg>
+                </a>`;
+            chatContainer.append(messageEl);
+
+            //add click event to delete a message
+            let deleteButton = messageEl.querySelector('.delete-link');
+            deleteButton.addEventListener("click", (e) => {
+                e.preventDefault();
+                deleteMessage(deleteButton.getAttribute('href'));
+            })
+
+            //animate appear
+            setTimeout(() => {
+                messageEl.classList.remove('disappear');
+            }, 5)
+
+            setTimeout(() => {
+                chatContainer.scroll({
+                    top: chatContainer.scrollHeight,
+                    left: 0,
+                    behavior: 'smooth'
+                });
+            }, 300);
+        }
+
+        function deletedMessage(id) {
+            //animate deleting
+            let deletedMessage = document.getElementById(id);
+            deletedMessage.classList.add('disappear');
+            setTimeout(() => {
+                deletedMessage.style.display = "none";
+            }, 301)
+        }
+
+    </script>
+{% endblock %}
